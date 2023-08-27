@@ -9,11 +9,12 @@
 const byte colPins [NBCOLS] = {2, 3, 4, 5};
 const byte rowPins [NBROWS] = {18, 15, 14, 16, 10};
 
-const KeyboardKeycode keys [NBCOLS - 1][NBROWS - 1] = {{KEY_F13, KEY_F14, KEY_F15, KEY_F16}, {KEY_F17, KEY_F18, KEY_F19, KEY_F20}, {KEY_F21, KEY_F22, KEY_F23, KEY_F24}};
-const ConsumerKeycode consumers [NBROWS - 1] = {MEDIA_VOLUME_MUTE, MEDIA_PLAY_PAUSE, MEDIA_NEXT, MEDIA_PREVIOUS};
+const KeyboardKeycode keys [NBCOLS - 1][NBROWS - 1] = {{KEY_5, KEY_1, KEY_8, KEY_4}, {KEY_2, KEY_9, KEY_6, KEY_3}, {KEY_7, KEY_Q, KEY_B, KEY_C}};
+
+KeyboardKeycode tosend [1024] = {};
+int sendindex = 0;
 
 bool keyboard [NBCOLS][NBROWS] = {{false, false}};
-int rotary_value = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -28,11 +29,7 @@ void setup() {
 }
 
 void loop() {
-  int rotary_value_new = map(analogRead(ROTARYPIN), 0, 1023, 0, 65);
-  while (rotary_value != rotary_value_new){
-    Consumer.write(rotary_value < rotary_value_new ? MEDIA_VOLUME_UP : MEDIA_VOLUME_DOWN);
-    rotary_value += rotary_value < rotary_value_new ? 1 : -1;
-  }
+  int rotary_value = analogRead(ROTARYPIN);
   
   for(int i = 0; i < NBCOLS; i++) {
     pinMode (colPins[i], OUTPUT);
@@ -43,35 +40,41 @@ void loop() {
       if (pressed && !keyboard[i][j]){
 
         if (i == NBCOLS - 1) {
-          if (j > 0) {
-            Consumer.write(consumers[j - 1]); 
-          }
+          //if (j > 0) {
+          //}
         }
         else if (j < NBROWS - 1){
-          Keyboard.write(keys[i][j]);
+          tosend[sendindex++] = keys[i][j];
         }
         else {
           switch(i) {
             case 0 :
-              Keyboard.press(KEY_LEFT_CTRL);
-              Keyboard.press(KEY_LEFT_SHIFT);
-              Keyboard.write(KEY_J);
-              Keyboard.release(KEY_LEFT_CTRL);
-              Keyboard.release(KEY_LEFT_SHIFT);
               break;
             case 1 :
-              Keyboard.press(KEY_LEFT_CTRL);
-              Keyboard.press(KEY_LEFT_SHIFT);
-              Keyboard.write(KEY_Z);
-              Keyboard.release(KEY_LEFT_CTRL);
-              Keyboard.release(KEY_LEFT_SHIFT);
+              if (sendindex > 0) sendindex--;
               break;
             case 2 :
-              Keyboard.press(KEY_LEFT_GUI);
-              Keyboard.write(KEY_L);
-              Keyboard.release(KEY_LEFT_GUI);
+              if (sendindex > 0) {
+                for(int i = 0; i < sendindex; i++)
+                {                
+                  Keyboard.press(KEY_LEFT_SHIFT);
+                  Keyboard.write(tosend[i]);
+                  Keyboard.release(KEY_LEFT_SHIFT);
+                }
+                Keyboard.write(KEY_COMMA);
+                
+                char buffer [4];
+                String poten = itoa(rotary_value, buffer, 10);
+                
+                Keyboard.press(KEY_LEFT_SHIFT);
+                Keyboard.print(poten);
+                Keyboard.release(KEY_LEFT_SHIFT);
+                
+                Keyboard.write(KEY_ENTER);
+                
+                sendindex = 0;
+              }
               break;
-              
           }
         }
         
